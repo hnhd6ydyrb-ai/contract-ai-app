@@ -10,10 +10,8 @@
   "author": "김민찬",
   "license": "ISC",
   "type": "commonjs",
-  "dependencies": {
-    "electron": "^42.4.0"
-  },
   "devDependencies": {
+    "electron": "^35.7.5",
     "electron-builder": "^26.15.2"
   },
   "build": {

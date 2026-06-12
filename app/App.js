@@ -22,7 +22,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 
-const SERVER_URL = "http://172.20.10.2:3000";
+const SERVER_URL = "https://contract-ai-app-production.up.railway.app";
 const STORAGE_KEY = "contract_analysis_history";
 
 export default function App() {

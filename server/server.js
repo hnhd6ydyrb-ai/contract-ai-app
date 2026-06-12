@@ -6,7 +6,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json({ limit: "80mb" }));
@@ -40,7 +40,6 @@ const analysisPrompt = `
 (계약 체결 전 확인해야 할 사항)
 
 규칙:
-
 1. 첫 줄은 반드시 "위험도 점수: 숫자/100"
 2. 두 번째 줄은 반드시 "위험도 등급:"
 3. 위험도 점수는 반드시 계산해서 표시
@@ -48,7 +47,6 @@ const analysisPrompt = `
 5. 형식을 변경하지 마라
 
 위험도 기준:
-
 0~30 = 안전
 31~70 = 주의
 71~100 = 위험
@@ -65,6 +63,37 @@ const analysisPrompt = `
 위 요소가 많을수록 위험도를 높여라.
 `;
 
+async function generateWithFallback(content) {
+  const models = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash",
+  ];
+
+  let lastError;
+
+  for (const modelName of models) {
+    try {
+      console.log(`${modelName} 시도`);
+
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+      });
+
+      const result = await model.generateContent(content);
+
+      console.log(`${modelName} 성공`);
+
+      return result.response.text();
+    } catch (error) {
+      console.error(`${modelName} 실패:`, error.message);
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+}
+
 app.get("/", (req, res) => {
   res.send("Gemini 계약서 분석 서버 실행 중");
 });
@@ -74,24 +103,29 @@ app.post("/analyze", async (req, res) => {
     const { text } = req.body;
 
     if (!text || text.trim() === "") {
-      return res.status(400).json({ error: "계약서 내용을 입력해주세요." });
+      return res.status(400).json({
+        error: "계약서 내용을 입력해주세요.",
+      });
     }
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-    });
-
-    const result = await model.generateContent(`
+    const prompt = `
 ${analysisPrompt}
 
 계약서 내용:
 ${text}
-`);
+`;
 
-    res.json({ result: result.response.text() });
+    const answer = await generateWithFallback(prompt);
+
+    res.json({
+      result: answer,
+    });
   } catch (error) {
     console.error("Gemini 텍스트 분석 오류:", error);
-    res.status(500).json({ error: "AI 분석 중 오류가 발생했습니다." });
+
+    res.status(500).json({
+      error: "현재 AI 서버가 매우 혼잡합니다. 잠시 후 다시 시도해주세요.",
+    });
   }
 });
 
@@ -100,14 +134,12 @@ app.post("/analyze-image", async (req, res) => {
     const { imageBase64, mimeType } = req.body;
 
     if (!imageBase64) {
-      return res.status(400).json({ error: "이미지가 없습니다." });
+      return res.status(400).json({
+        error: "이미지가 없습니다.",
+      });
     }
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash-lite",
-    });
-
-    const result = await model.generateContent([
+    const content = [
       `
 이미지 속 계약서 글자를 먼저 읽어낸 뒤 분석해라.
 
@@ -119,12 +151,19 @@ ${analysisPrompt}
           mimeType: mimeType || "image/jpeg",
         },
       },
-    ]);
+    ];
 
-    res.json({ result: result.response.text() });
+    const answer = await generateWithFallback(content);
+
+    res.json({
+      result: answer,
+    });
   } catch (error) {
     console.error("Gemini 이미지 분석 오류:", error);
-    res.status(500).json({ error: "이미지 분석 중 오류가 발생했습니다." });
+
+    res.status(500).json({
+      error: "현재 이미지 분석 서버가 혼잡합니다. 잠시 후 다시 시도해주세요.",
+    });
   }
 });
 
@@ -133,14 +172,12 @@ app.post("/analyze-pdf", async (req, res) => {
     const { pdfBase64, mimeType } = req.body;
 
     if (!pdfBase64) {
-      return res.status(400).json({ error: "PDF 파일이 없습니다." });
+      return res.status(400).json({
+        error: "PDF 파일이 없습니다.",
+      });
     }
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash-lite",
-    });
-
-    const result = await model.generateContent([
+    const content = [
       `
 PDF 계약서 내용을 읽고 분석해라.
 
@@ -152,12 +189,19 @@ ${analysisPrompt}
           mimeType: mimeType || "application/pdf",
         },
       },
-    ]);
+    ];
 
-    res.json({ result: result.response.text() });
+    const answer = await generateWithFallback(content);
+
+    res.json({
+      result: answer,
+    });
   } catch (error) {
     console.error("Gemini PDF 분석 오류:", error);
-    res.status(500).json({ error: "PDF 분석 중 오류가 발생했습니다." });
+
+    res.status(500).json({
+      error: "현재 PDF 분석 서버가 혼잡합니다. 잠시 후 다시 시도해주세요.",
+    });
   }
 });
 
