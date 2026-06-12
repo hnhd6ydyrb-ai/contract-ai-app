@@ -3,13 +3,38 @@ import "./App.css";
 
 const SERVER_URL = "https://contract-ai-app-production.up.railway.app";
 const WEB_URL = "https://web-five-brown-85.vercel.app";
+
 const APK_URL =
   "https://github.com/hnhd6ydyrb-ai/contract-ai-app/releases/download/v1.0.0/application-a9939093-820e-4a43-9e83-96a718357774.apk";
+
+const APK_QR = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+  APK_URL
+)}`;
+
+const WEB_QR = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+  WEB_URL
+)}`;
 
 function App() {
   const [contractText, setContractText] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
+  const [imagePreview, setImagePreview] = useState("");
+  const [selectedFileName, setSelectedFileName] = useState("");
+
+  const getBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const base64 = reader.result.split(",")[1];
+        resolve(base64);
+      };
+
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
 
   const analyzeContract = async () => {
     if (!contractText.trim()) {
@@ -19,6 +44,8 @@ function App() {
 
     setLoading(true);
     setResult("");
+    setImagePreview("");
+    setSelectedFileName("");
 
     try {
       const response = await fetch(`${SERVER_URL}/analyze`, {
@@ -41,6 +68,86 @@ function App() {
     }
   };
 
+  const analyzeImage = async (event) => {
+    const file = event.target.files[0];
+
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("이미지 파일만 업로드해주세요.");
+      return;
+    }
+
+    setLoading(true);
+    setResult("");
+    setSelectedFileName(file.name);
+    setImagePreview(URL.createObjectURL(file));
+
+    try {
+      const imageBase64 = await getBase64(file);
+
+      const response = await fetch(`${SERVER_URL}/analyze-image`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageBase64,
+          mimeType: file.type || "image/jpeg",
+        }),
+      });
+
+      const data = await response.json();
+      setResult(data.result || data.error || "이미지 분석 결과를 받지 못했습니다.");
+    } catch (error) {
+      console.log(error);
+      setResult("이미지 분석에 실패했습니다.");
+    } finally {
+      setLoading(false);
+      event.target.value = "";
+    }
+  };
+
+  const analyzePDF = async (event) => {
+    const file = event.target.files[0];
+
+    if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      alert("PDF 파일만 업로드해주세요.");
+      return;
+    }
+
+    setLoading(true);
+    setResult("");
+    setImagePreview("");
+    setSelectedFileName(file.name);
+
+    try {
+      const pdfBase64 = await getBase64(file);
+
+      const response = await fetch(`${SERVER_URL}/analyze-pdf`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          pdfBase64,
+          mimeType: "application/pdf",
+        }),
+      });
+
+      const data = await response.json();
+      setResult(data.result || data.error || "PDF 분석 결과를 받지 못했습니다.");
+    } catch (error) {
+      console.log(error);
+      setResult("PDF 분석에 실패했습니다.");
+    } finally {
+      setLoading(false);
+      event.target.value = "";
+    }
+  };
+
   const copyResult = async () => {
     if (!result) {
       alert("복사할 결과가 없습니다.");
@@ -54,6 +161,8 @@ function App() {
   const clearAll = () => {
     setContractText("");
     setResult("");
+    setImagePreview("");
+    setSelectedFileName("");
   };
 
   return (
@@ -62,7 +171,7 @@ function App() {
         <div className="badge">AI Contract Checker</div>
         <h1>AI 계약서 해석</h1>
         <p>
-          어려운 계약서를 붙여넣으면 AI가 핵심 내용, 위험 조항, 주의할 점을
+          계약서 텍스트, 이미지, PDF를 AI가 분석해서 핵심 내용과 위험 조항을
           쉽게 정리해줍니다.
         </p>
       </header>
@@ -91,12 +200,51 @@ function App() {
 
             <div className="button-row">
               <button className="primary-btn" onClick={analyzeContract}>
-                {loading ? "분석 중..." : "AI 분석하기"}
+                {loading ? "분석 중..." : "텍스트 분석하기"}
               </button>
 
               <button className="secondary-btn" onClick={clearAll}>
                 초기화
               </button>
+            </div>
+
+            <div className="upload-box">
+              <h3>파일로 분석하기</h3>
+              <p>계약서 사진 또는 PDF 파일을 업로드할 수 있습니다.</p>
+
+              <div className="upload-row">
+                <label className="upload-btn">
+                  🖼️ 이미지 업로드
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={analyzeImage}
+                    hidden
+                  />
+                </label>
+
+                <label className="upload-btn">
+                  📄 PDF 업로드
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={analyzePDF}
+                    hidden
+                  />
+                </label>
+              </div>
+
+              {selectedFileName && (
+                <p className="file-name">선택된 파일: {selectedFileName}</p>
+              )}
+
+              {imagePreview && (
+                <img
+                  src={imagePreview}
+                  alt="업로드 이미지 미리보기"
+                  className="preview-image"
+                />
+              )}
             </div>
 
             <p className="notice">
@@ -115,7 +263,8 @@ function App() {
 
             {!result && !loading && (
               <div className="empty">
-                계약서를 입력하고 분석 버튼을 누르면 결과가 여기에 표시됩니다.
+                계약서 텍스트를 입력하거나 이미지/PDF를 업로드하면 결과가 여기에
+                표시됩니다.
               </div>
             )}
 
@@ -137,8 +286,8 @@ function App() {
           <p>계약서의 위험 수준을 0~100점으로 평가합니다.</p>
         </div>
         <div>
-          <strong>위험 조항 탐지</strong>
-          <p>위약금, 자동연장, 손해배상 조항을 찾아냅니다.</p>
+          <strong>이미지/PDF 분석</strong>
+          <p>계약서 사진과 PDF 파일도 업로드해서 분석할 수 있습니다.</p>
         </div>
         <div>
           <strong>쉬운 설명</strong>
@@ -179,6 +328,8 @@ function App() {
             </div>
           </div>
 
+          <img src={WEB_QR} alt="웹사이트 QR" className="qr-image" />
+
           <a
             className="download-link"
             href={WEB_URL}
@@ -196,9 +347,11 @@ function App() {
         <div className="info-card android-card">
           <h3>Android 설치 파일 다운로드</h3>
           <p>
-            Android 사용자는 APK 파일을 다운로드해서 설치할 수 있습니다.
-            설치 시 “알 수 없는 앱 설치 허용” 안내가 나올 수 있습니다.
+            Android 사용자는 APK 파일을 다운로드해서 설치할 수 있습니다. QR
+            코드를 휴대폰으로 스캔해도 다운로드할 수 있습니다.
           </p>
+
+          <img src={APK_QR} alt="Android APK QR" className="qr-image" />
 
           <a
             href={APK_URL}

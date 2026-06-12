@@ -1,15 +1,27 @@
 {
-  "name": "contract-ai-server",
+  "name": "contract-ai-desktop",
   "version": "1.0.0",
-  "type": "module",
-  "main": "server.js",
+  "description": "AI 계약서 해석 데스크톱 앱",
+  "main": "main.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "electron .",
+    "build": "electron-builder --mac"
   },
+  "author": "김민찬",
+  "license": "ISC",
+  "type": "commonjs",
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
-    "express": "^5.1.0"
+    "electron": "^42.4.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^26.15.2"
+  },
+  "build": {
+    "appId": "com.minchan.contractai",
+    "productName": "AI 계약서 해석",
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.productivity"
+    }
   }
 }

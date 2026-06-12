@@ -27,9 +27,6 @@ const SERVER_URL = "https://contract-ai-app-production.up.railway.app";
 const APK_URL =
   "https://github.com/hnhd6ydyrb-ai/contract-ai-app/releases/download/v1.0.0/application-a9939093-820e-4a43-9e83-96a718357774.apk";
 
-const WEB_URL =
-  "https://web-five-brown-85.vercel.app";
-
 const APK_QR =
   `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(APK_URL)}`;
 
